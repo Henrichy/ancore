@@ -123,13 +123,12 @@ describe('SecureStorageManager - Master Salt Initialization', () => {
       expect(Array.from(loadedSalt!)).toEqual(Array.from(knownBytes));
     });
 
-    it('should return null for empty string in storage', async () => {
+    it('should throw for empty string in storage (corrupted)', async () => {
       await storage.set('master_salt', '');
       
       const loadMasterSalt = (manager as any).loadMasterSalt.bind(manager);
-      const result = await loadMasterSalt();
       
-      expect(result).toBeNull();
+      await expect(loadMasterSalt()).rejects.toThrow('Corrupted master_salt: expected 16 bytes');
     });
   });
 });
