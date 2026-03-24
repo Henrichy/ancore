@@ -21,6 +21,14 @@ module.exports = [
         ecmaFeatures: {
           jsx: true,
         },
+      parserOptions: {
+        ecmaVersion: 2020,
+        sourceType: 'module',
+        ecmaFeatures: { jsx: true },
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
       },
     },
     plugins: {
@@ -40,5 +48,13 @@ module.exports = [
         version: 'detect',
       },
     },
+    },
+    rules: {
+      ...tseslint.configs.recommended.rules,
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    ignores: ['dist/**', 'node_modules/**', '*.config.js', '*.config.cjs', '*.config.ts'],
   },
 ];

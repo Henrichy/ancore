@@ -1,41 +1,39 @@
-import * as React from 'react';
-import { createRoot } from 'react-dom/client';
-import './globals.css';
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom/client';
 import { ReceiveScreen } from './screens/ReceiveScreen';
+import { SettingsScreen } from './screens/Settings/SettingsScreen';
+import './index.css'; // Standardized on index.css
 
 function App() {
-  const [network, setNetwork] = React.useState<'mainnet' | 'testnet' | 'futurenet'>('testnet');
+  const [view, setView] = useState<'receive' | 'settings'>('receive');
+  const [network, setNetwork] = useState<'mainnet' | 'testnet' | 'futurenet'>('testnet');
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 gap-4">
-      {/* Demo picker */}
-      <div className="flex gap-2">
-        {(['mainnet', 'testnet', 'futurenet'] as const).map((n) => (
-          <button
-            key={n}
-            onClick={() => setNetwork(n)}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-              network === n
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
-            }`}
-          >
-            {n.charAt(0).toUpperCase() + n.slice(1)}
-          </button>
-        ))}
-      </div>
+    <React.StrictMode>
+      {/* Container from 'main' to maintain consistent UI width */}
+      <div className="w-[360px] min-h-screen bg-slate-100 mx-auto shadow-xl flex flex-col items-center p-6 gap-4">
+        
+        {/* Simple Navigation for development */}
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => setView('receive')} className="text-xs underline">Receive</button>
+          <button onClick={() => setView('settings')} className="text-xs underline">Settings</button>
+        </div>
 
-      <ReceiveScreen
-        account={{
-          publicKey: 'GD6SZQJNKL3ZYXPWLUVFXZNXUVXJTQPWMQHZMDMQHLS5VNLQBQNPFLM',
-          name: 'My Stellar Wallet',
-        }}
-        network={network}
-        onBack={() => alert('← Back clicked')}
-      />
-    </div>
+        {view === 'receive' ? (
+          <ReceiveScreen
+            account={{
+              publicKey: 'GD6SZQJNKL3ZYXPWLUVFXZNXUVXJTQPWMQHZMDMQHLS5VNLQBQNPFLM',
+              name: 'My Stellar Wallet',
+            }}
+            network={network}
+            onBack={() => setView('settings')}
+          />
+        ) : (
+          <SettingsScreen />
+        )}
+      </div>
+    </React.StrictMode>
   );
 }
 
-const container = document.getElementById('root')!;
-createRoot(container).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
