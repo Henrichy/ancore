@@ -72,6 +72,13 @@ describe('signTransaction', () => {
       mockAccount(kp.publicKey(), '1'),
       { networkPassphrase }
     )
+      .addOperation(
+        Operation.payment({
+          destination: Keypair.random().publicKey(),
+          asset: Asset.native(),
+          amount: '10',
+        })
+      )
       .addMemo(Memo.text('test'))
       .setTimeout(0)
       .build();
@@ -89,6 +96,13 @@ describe('signTransaction', () => {
       mockAccount(kp.publicKey(), '1'),
       { networkPassphrase }
     )
+      .addOperation(
+        Operation.payment({
+          destination: Keypair.random().publicKey(),
+          asset: Asset.native(),
+          amount: '10',
+        })
+      )
       .setTimeout(0)
       .build();
 
