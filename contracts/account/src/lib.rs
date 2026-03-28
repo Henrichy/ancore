@@ -171,7 +171,7 @@ impl AncoreAccount {
     /// - Nonce is incremented before invocation (checks-effects-interactions)
     pub fn execute(
         env: Env,
-        caller: CallerIdentity,
+        _caller: CallerIdentity,
         to: Address,
         function: soroban_sdk::Symbol,
         args: Vec<Val>,
@@ -365,7 +365,7 @@ impl AncoreAccount {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{testutils::{Address as _, Events}, Address, Env, Bytes, xdr::ToXdr};
+    use soroban_sdk::{testutils::{Address as _, Events, Ledger}, Address, Env, Bytes, xdr::ToXdr};
     use ed25519_dalek::{SigningKey, Signer};
     use rand::rngs::OsRng;
 
@@ -376,16 +376,19 @@ mod test {
         function: &soroban_sdk::Symbol,
         args: &Vec<Val>,
         nonce: u64,
-    ) -> BytesN<64> {
+    ) -> (BytesN<64>, Bytes) {
         let mut payload = Bytes::new(env);
         payload.append(&to.clone().to_xdr(env));
         payload.append(&function.clone().to_xdr(env));
         payload.append(&args.clone().to_xdr(env));
         payload.append(&nonce.to_xdr(env));
 
-        let msg_hash = env.crypto().sha256(&payload);
-        let signature = signing_key.sign(&msg_hash.to_array());
-        BytesN::from_array(env, &signature.to_bytes())
+        let mut payload_bytes = [0u8; 1024];
+        let len = payload.len() as usize;
+        payload.copy_into_slice(&mut payload_bytes[..len]);
+        
+        let signature = signing_key.sign(&payload_bytes[..len]);
+        (BytesN::from_array(env, &signature.to_bytes()), payload)
     }
 
     #[test]
@@ -520,7 +523,7 @@ mod test {
         let function = soroban_sdk::Symbol::new(&env, "get_nonce");
         let args = Vec::new(&env);
 
-        client.execute(&callee_id, &function, &args, &0u64, &None, &None, &None);
+        client.execute(&CallerIdentity::Owner, &callee_id, &function, &args, &0u64, &None, &None, &None);
 
         let events_list = env.events().all();
         assert!(events_list.len() >= 2);
@@ -566,7 +569,7 @@ mod test {
         let args = Vec::new(&env);
 
         // Current nonce is 0; passing expected_nonce = 1 must fail with InvalidNonce (#4)
-        client.execute(&to, &function, &args, &1u64, &None, &None, &None);
+        client.execute(&CallerIdentity::Owner, &to, &function, &args, &1u64, &None, &None, &None);
     }
 
     #[test]
@@ -586,7 +589,7 @@ mod test {
         let function = soroban_sdk::symbol_short!("get_nonce");
         let args = Vec::new(&env);
 
-        let _result = client.execute(&callee_id, &function, &args, &0u64, &None, &None, &None);
+        let _result = client.execute(&CallerIdentity::Owner, &callee_id, &function, &args, &0u64, &None, &None, &None);
 
         assert_eq!(client.get_nonce(), 1);
     }
@@ -630,10 +633,10 @@ mod test {
         let args = Vec::new(&env);
 
         // First execute succeeds with nonce 0
-        client.execute(&callee_id, &function, &args, &0u64, &None, &None, &None);
+        client.execute(&CallerIdentity::Owner, &callee_id, &function, &args, &0u64, &None, &None, &None);
 
         // Replaying nonce 0 must fail with InvalidNonce (#4)
-        client.execute(&callee_id, &function, &args, &0u64, &None, &None, &None);
+        client.execute(&CallerIdentity::Owner, &callee_id, &function, &args, &0u64, &None, &None, &None);
     }
 
     #[test]
@@ -660,9 +663,9 @@ mod test {
         let function = soroban_sdk::symbol_short!("get_nonce");
         let args = Vec::new(&env);
 
-        let sig = sign_payload(&env, &signing_key, &callee_id, &function, &args, 0);
+        let (sig, payload) = sign_payload(&env, &signing_key, &callee_id, &function, &args, 0);
 
-        let result = client.execute(&CallerIdentity::SessionKey(session_pk), &callee_id, &function, &args, &0u64, &Some(sig));
+        let result = client.execute(&CallerIdentity::SessionKey(session_pk.clone()), &callee_id, &function, &args, &0u64, &Some(session_pk), &Some(sig), &Some(payload));
         let result_u64: u64 = soroban_sdk::FromVal::from_val(&env, &result);
         assert_eq!(result_u64, 0);
     }
@@ -678,17 +681,26 @@ mod test {
         client.initialize(&owner);
         env.mock_all_auths();
 
-        // Register a callee that returns something predictable
+        let mut csprng = OsRng;
+        let signing_key = SigningKey::generate(&mut csprng);
+        let session_pk = BytesN::from_array(&env, &signing_key.verifying_key().to_bytes());
+
+        env.ledger().set_timestamp(2000);
+        let expires_at = 1000; // Expired relative to 2000
+        let mut permissions = Vec::new(&env);
+        permissions.push_back(1); 
+
+        client.add_session_key(&session_pk, &expires_at, &permissions);
+
         let callee_id = env.register_contract(None, AncoreAccount);
         let function = soroban_sdk::symbol_short!("get_nonce");
         let args = Vec::new(&env);
 
-        // Execute returns Val containing the result of the callee (which is 0u64)
-        let result = client.execute(&callee_id, &function, &args, &0u64, &None, &None, &None);
-        
-        let result_u64: u64 = soroban_sdk::FromVal::from_val(&env, &result);
-        assert_eq!(result_u64, 0); // Proves the value made it back from the cross-contract call
+        let (sig, payload) = sign_payload(&env, &signing_key, &callee_id, &function, &args, 0);
+
+        client.execute(&CallerIdentity::SessionKey(session_pk.clone()), &callee_id, &function, &args, &0u64, &Some(session_pk), &Some(sig), &Some(payload));
     }
 }
+
 
 
