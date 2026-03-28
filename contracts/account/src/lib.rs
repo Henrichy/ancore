@@ -86,6 +86,7 @@ pub enum DataKey {
     Owner,
     Nonce,
     SessionKey(BytesN<32>),
+    Version,
 }
 
 const DAY_IN_LEDGERS: u32 = 17280; // 24 hours * 60 min * 60 sec / 5 sec per ledger
@@ -106,6 +107,7 @@ impl AncoreAccount {
 
         env.storage().instance().set(&DataKey::Owner, &owner);
         env.storage().instance().set(&DataKey::Nonce, &0u64);
+        env.storage().instance().set(&DataKey::Version, &1u32);
 
         // Extend instance TTL
         env.storage().instance().extend_ttl(INSTANCE_BUMP_THRESHOLD, INSTANCE_BUMP_AMOUNT);
@@ -260,6 +262,26 @@ impl AncoreAccount {
             ledgers_to_live,
         );
     }
+
+    /// Upgrade the contract
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), ContractError> {
+        let owner = Self::get_owner(env.clone())?;
+        owner.require_auth();
+
+        let current_version: u32 = env.storage().instance().get(&DataKey::Version).unwrap_or(0);
+        env.storage().instance().set(&DataKey::Version, &(current_version + 1));
+        
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
+        
+        env.storage().instance().extend_ttl(INSTANCE_BUMP_THRESHOLD, INSTANCE_BUMP_AMOUNT);
+
+        Ok(())
+    }
+
+    /// Get contract version
+    pub fn get_version(env: Env) -> u32 {
+        env.storage().instance().get(&DataKey::Version).unwrap_or(0)
+    }
 }
 
 #[cfg(test)]
@@ -278,6 +300,7 @@ mod test {
 
         assert_eq!(client.get_owner(), owner);
         assert_eq!(client.get_nonce(), 0);
+        assert_eq!(client.get_version(), 1);
     }
 
     #[test]
