@@ -349,6 +349,13 @@ impl AncoreAccount {
             .get(&DataKey::SessionKey(public_key))
     }
 
+    /// Check if a session key exists
+    pub fn has_session_key(env: Env, public_key: BytesN<32>) -> bool {
+        env.storage()
+            .persistent()
+            .has(&DataKey::SessionKey(public_key))
+    }
+
     /// Refresh the TTL of a session key
     pub fn refresh_session_key_ttl(env: Env, public_key: BytesN<32>) -> Result<(), ContractError> {
         let session_key = Self::get_session_key(env.clone(), public_key.clone())
@@ -506,6 +513,67 @@ mod test {
         let data_tuple: (BytesN<32>, u64) = soroban_sdk::FromVal::from_val(&env, &data);
         assert_eq!(data_tuple.0, session_pk);
         assert_eq!(data_tuple.1, expires_at);
+    }
+
+    #[test]
+    fn test_has_session_key_present() {
+        let env = Env::default();
+        let contract_id = env.register_contract(None, AncoreAccount);
+        let client = AncoreAccountClient::new(&env, &contract_id);
+
+        let owner = Address::generate(&env);
+        client.initialize(&owner);
+
+        env.mock_all_auths();
+
+        let session_pk = BytesN::from_array(&env, &[1u8; 32]);
+        let expires_at = 1000u64;
+        let permissions = Vec::new(&env);
+
+        // Before adding: should be false
+        assert!(!client.has_session_key(&session_pk));
+
+        client.add_session_key(&session_pk, &expires_at, &permissions);
+
+        // After adding: should be true
+        assert!(client.has_session_key(&session_pk));
+    }
+
+    #[test]
+    fn test_has_session_key_absent() {
+        let env = Env::default();
+        let contract_id = env.register_contract(None, AncoreAccount);
+        let client = AncoreAccountClient::new(&env, &contract_id);
+
+        let owner = Address::generate(&env);
+        client.initialize(&owner);
+
+        let session_pk = BytesN::from_array(&env, &[1u8; 32]);
+
+        // Never added: should be false
+        assert!(!client.has_session_key(&session_pk));
+    }
+
+    #[test]
+    fn test_has_session_key_after_revoke() {
+        let env = Env::default();
+        let contract_id = env.register_contract(None, AncoreAccount);
+        let client = AncoreAccountClient::new(&env, &contract_id);
+
+        let owner = Address::generate(&env);
+        client.initialize(&owner);
+
+        env.mock_all_auths();
+
+        let session_pk = BytesN::from_array(&env, &[1u8; 32]);
+        let expires_at = 1000u64;
+        let permissions = Vec::new(&env);
+
+        client.add_session_key(&session_pk, &expires_at, &permissions);
+        assert!(client.has_session_key(&session_pk));
+
+        client.revoke_session_key(&session_pk);
+        assert!(!client.has_session_key(&session_pk));
     }
 
     #[test]
@@ -776,6 +844,7 @@ mod test {
         let expires_at = 1000; // Expired relative to 2000
         let mut permissions = Vec::new(&env);
         permissions.push_back(PERMISSION_EXECUTE);
+        permissions.push_back(1);
 
         client.add_session_key(&session_pk, &expires_at, &permissions);
 
