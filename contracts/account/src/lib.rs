@@ -114,8 +114,6 @@ const DAY_IN_LEDGERS: u32 = 17280; // 24 hours * 60 min * 60 sec / 5 sec per led
 const INSTANCE_BUMP_AMOUNT: u32 = 30 * DAY_IN_LEDGERS; // 30 days
 const INSTANCE_BUMP_THRESHOLD: u32 = 15 * DAY_IN_LEDGERS; // 15 days
 
-/// Permission bit for execute operations
-const PERMISSION_EXECUTE: u32 = 1;
 /// Permission bit for session-key execute authorization.
 /// Issue #188: Session keys must have this permission to invoke transactions.
 /// Without this bit set, execute() returns InsufficientPermission error.
@@ -742,6 +740,21 @@ mod test {
 
         let session_key = client.get_session_key(&session_pk);
         assert!(session_key.is_some());
+    }
+
+    #[test]
+    fn test_refresh_session_key_ttl_unknown_key_returns_session_key_not_found() {
+        let env = Env::default();
+        let contract_id = env.register_contract(None, AncoreAccount);
+        let client = AncoreAccountClient::new(&env, &contract_id);
+
+        let owner = Address::generate(&env);
+        client.initialize(&owner);
+
+        let unknown_session_pk = BytesN::from_array(&env, &[9u8; 32]);
+        let result = client.try_refresh_session_key_ttl(&unknown_session_pk);
+
+        assert_eq!(result, Err(Ok(ContractError::SessionKeyNotFound)));
     }
 
     #[test]
