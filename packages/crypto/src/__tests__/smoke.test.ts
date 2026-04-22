@@ -3,7 +3,6 @@ import * as CryptoAPI from '../index';
 const EXPECTED_EXPORTS = [
   'CRYPTO_VERSION',
   'verifySignature',
-  'signTransaction',
   'validatePasswordStrength',
   'encryptSecretKey',
   'decryptSecretKey',

@@ -5,7 +5,7 @@
 
 export const CRYPTO_VERSION = '0.1.0';
 
-export { verifySignature, signTransaction } from './signing';
+export { verifySignature } from './signing';
 export { validatePasswordStrength } from './password';
 export { encryptSecretKey, decryptSecretKey } from './encryption';
 export type { EncryptedSecretKeyPayload } from './encryption';

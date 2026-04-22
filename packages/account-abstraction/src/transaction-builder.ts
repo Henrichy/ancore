@@ -2,15 +2,19 @@
 // MVP: Fluent API for session key add/revoke, contract execute, simulation helper, .build()
 
 // import { buildSorobanTransaction } from './xdr-utils'; // Not exported
-import { Keypair, Transaction } from '@stellar/stellar-sdk';
+import { Transaction } from '@stellar/stellar-sdk';
 
 export type SessionKeyOp = 'add' | 'revoke';
 
 export interface ContractExecuteParams {
   contractId: string;
   method: string;
-  args: any[];
+  args: unknown[];
 }
+
+type BuilderOp =
+  | { type: 'sessionKey'; op: SessionKeyOp; sessionKey: string }
+  | ({ type: 'contractExecute' } & ContractExecuteParams);
 
 export interface SimulationResult {
   fee: string;
@@ -19,7 +23,7 @@ export interface SimulationResult {
 
 export class TransactionBuilder {
   private source: string;
-  private ops: any[] = [];
+  private ops: BuilderOp[] = [];
   private fee: string = '10000';
 
   constructor(source: string) {

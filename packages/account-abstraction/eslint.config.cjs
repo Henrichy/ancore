@@ -45,7 +45,16 @@ module.exports = [
         sourceType: 'module',
       },
       globals: {
-        ...nodeGlobals,
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        jest: 'readonly',
+        Buffer: 'readonly',
+        console: 'readonly',
       },
     },
     plugins: {
@@ -54,19 +63,7 @@ module.exports = [
     plugins: { '@typescript-eslint': tseslint },
     rules: {
       ...tseslint.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'warn',
-    },
-  },
-  {
-    files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
-    languageOptions: {
-      globals: {
-        ...jestGlobals,
-      },
-    },
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
   {
